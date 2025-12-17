@@ -2,6 +2,10 @@
 
 A minimalist, elegant, and fully offline deterministic password generator built with vanilla HTML, CSS, and JavaScript.
 
+
+![PWD-Crypt Interface](https://github.com/ImmanuelBTaylor/pwd-crypt/blob/main/12-17-2025_at_14-17-19.png?raw=true)
+![PWD-Crypt Interface](https://github.com/ImmanuelBTaylor/pwd-crypt/blob/main/12-17-2025_at_14-18-05.png?raw=true)
+
 PWD-Crypt allows you to generate strong, repeatable passwords for any account by combining three custom inputs (e.g., a master password, site name, and personal identifier) with secure cryptographic hashing. The same inputs and settings will **always** produce the exact same password — perfect for password management without storing anything.
 
 No data is sent anywhere. Everything runs locally in your browser using the Web Crypto API.
