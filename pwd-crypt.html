@@ -61,7 +61,9 @@
         }
 
         input[type="password"],
-        select {
+        input[type="text"],
+        select,
+        textarea {
             width: 100%;
             padding: 12px 14px;
             border: 1px solid var(--border);
@@ -74,7 +76,9 @@
         }
 
         input[type="password"]:focus,
-        select:focus {
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
             outline: none;
             border-color: var(--accent);
             box-shadow: 0 0 0 3px rgba(139, 123, 94, 0.15);
@@ -83,6 +87,11 @@
         select[multiple] {
             height: 120px;
             padding: 8px 14px;
+        }
+
+        textarea {
+            height: 80px;
+            resize: vertical;
         }
 
         .checkbox-group {
@@ -139,6 +148,11 @@
             word-break: break-all;
             line-height: 1.5;
             min-height: 24px;
+            cursor: pointer; /* Make it obvious it's clickable */
+        }
+
+        #output:hover {
+            background: rgba(139, 123, 94, 0.12);
         }
 
         #copyBtn {
@@ -158,7 +172,7 @@
 <body>
     <div class="container">
         <h1>PWD-Crypt</h1>
-        <p class="subtitle">Deterministic password generator using secure hashing</p>
+        <p class="subtitle">Deterministic password generator with advanced hashing options</p>
 
         <label for="input1">Input 1</label>
         <input type="password" id="input1" autocomplete="off">
@@ -169,12 +183,26 @@
         <label for="input3">Input 3</label>
         <input type="password" id="input3" autocomplete="off">
 
-        <label for="hashMethods">Hash Methods (hold Ctrl/Cmd to select multiple)</label>
+        <label for="salt">Optional Salt</label>
+        <input type="text" id="salt" placeholder="Extra fixed salt (optional)" autocomplete="off">
+
+        <label for="hashMethods">Hash Algorithms (select multiple to chain)</label>
         <select id="hashMethods" multiple>
             <option value="SHA-256" selected>SHA-256</option>
             <option value="SHA-384">SHA-384</option>
             <option value="SHA-512">SHA-512</option>
             <option value="SHA-1">SHA-1 (legacy)</option>
+        </select>
+
+        <label for="iterations">Hash Iterations (1-100)</label>
+        <select id="iterations">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
         </select>
 
         <label for="length">Length</label>
@@ -184,17 +212,24 @@
             <option value="20">20</option>
             <option value="24">24</option>
             <option value="32">32</option>
+            <option value="64">64</option>
         </select>
 
         <div class="checkbox-group">
+            <label><input type="checkbox" id="lowercase" checked> Lowercase letters</label>
             <label><input type="checkbox" id="uppercase" checked> Uppercase letters</label>
             <label><input type="checkbox" id="numbers" checked> Numbers</label>
-            <label><input type="checkbox" id="symbols" checked> Symbols (!@#$%^&*()_+-=)</label>
+            <label><input type="checkbox" id="symbols" checked> Basic symbols (!@#$%^&*()_+-=)</label>
+            <label><input type="checkbox" id="extraSymbols"> Extra symbols ([]{}|;:'",.&lt;&gt;?/`~)</label>
+            <label><input type="checkbox" id="avoidAmbiguous" checked> Avoid ambiguous chars (0OIl1)</label>
         </div>
+
+        <label for="customCharset">Custom Charset (overrides above if provided)</label>
+        <textarea id="customCharset" placeholder="Enter custom characters (e.g., abc123!@#)"></textarea>
 
         <button id="hashBtn">Generate Password</button>
 
-        <div id="output"></div>
+        <div id="output" title="Click to copy"></div>
         <button id="copyBtn" style="display:none;">Copy to Clipboard</button>
     </div>
 
@@ -203,10 +238,26 @@
         const copyBtn = document.getElementById('copyBtn');
         const outputDiv = document.getElementById('output');
 
+        // Make output clickable to copy
+        outputDiv.addEventListener('click', () => {
+            const password = outputDiv.textContent;
+            if (password) {
+                navigator.clipboard.writeText(password).then(() => {
+                    outputDiv.textContent = 'Copied!';
+                    setTimeout(() => {
+                        outputDiv.textContent = password;
+                    }, 2000);
+                }).catch(() => {
+                    alert('Copy failed — select and copy manually.');
+                });
+            }
+        });
+
         hashBtn.addEventListener('click', async () => {
             const input1 = document.getElementById('input1').value.trim();
             const input2 = document.getElementById('input2').value.trim();
             const input3 = document.getElementById('input3').value.trim();
+            const salt = document.getElementById('salt').value.trim();
 
             if (!input1 || !input2 || !input3) {
                 outputDiv.textContent = 'Please fill all three inputs.';
@@ -218,27 +269,61 @@
                 .map(opt => opt.value);
 
             if (selectedHashes.length === 0) {
-                outputDiv.textContent = 'Select at least one hash method.';
+                outputDiv.textContent = 'Select at least one hash algorithm.';
                 copyBtn.style.display = 'none';
                 return;
             }
 
+            const iterations = parseInt(document.getElementById('iterations').value);
             const length = parseInt(document.getElementById('length').value);
+            const includeLower = document.getElementById('lowercase').checked;
             const includeUpper = document.getElementById('uppercase').checked;
             const includeNumbers = document.getElementById('numbers').checked;
             const includeSymbols = document.getElementById('symbols').checked;
+            const includeExtraSymbols = document.getElementById('extraSymbols').checked;
+            const avoidAmbiguous = document.getElementById('avoidAmbiguous').checked;
+            const customCharset = document.getElementById('customCharset').value.trim();
 
-            let charset = 'abcdefghijklmnopqrstuvwxyz';
-            if (includeUpper) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-            if (includeNumbers) charset += '0123456789';
-            if (includeSymbols) charset += '!@#$%^&*()_+-=';
+            let charset = '';
+            if (customCharset) {
+                charset = customCharset;
+            } else {
+                if (includeLower) charset += 'abcdefghijkmnopqrstuvwxyz'; // k instead of l if ambiguous
+                if (includeUpper) charset += 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+                if (includeNumbers) charset += '23456789';
+                if (includeSymbols) charset += '!@#$%^&*()_+-=';
+                if (includeExtraSymbols) charset += '[]{}|;:\'",.<>?/`~';
 
-            const combined = `${input1}|${input2}|${input3}`;
+                if (avoidAmbiguous) {
+                    charset = charset.replace(/[0OIl1]/g, '');
+                } else {
+                    // Add back if not avoiding
+                    if (includeLower) charset = charset.replace('k', 'kl'); // Crude fix, but works
+                    if (includeNumbers) charset = '0' + charset + '1';
+                    if (includeUpper) charset += 'IO';
+                }
+            }
+
+            if (charset.length < 10) {
+                outputDiv.textContent = 'Charset too small — add more options.';
+                copyBtn.style.display = 'none';
+                return;
+            }
+
+            // Deduplicate charset
+            charset = [...new Set(charset)].join('');
+
+            let combined = `${input1}|${input2}|${input3}`;
+            if (salt) combined += `|${salt}`;
+
             const encoder = new TextEncoder();
             let data = encoder.encode(combined);
 
-            for (const algo of selectedHashes) {
-                data = await crypto.subtle.digest(algo.replace('-', ''), data);
+            // Apply chained hashes with iterations
+            for (let iter = 0; iter < iterations; iter++) {
+                for (const algo of selectedHashes) {
+                    data = await crypto.subtle.digest(algo, data);
+                }
             }
 
             const hashArray = new Uint8Array(data);
