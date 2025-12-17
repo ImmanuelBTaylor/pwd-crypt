@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWD-Crypt</title>
+    <style>
+        :root {
+            --bg: #f5f0e6;
+            --card: #fdf9f1;
+            --text: #3c3428;
+            --accent: #8b7b5e;
+            --border: #e0d8c9;
+            --hover: #a5967a;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card);
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(139, 123, 94, 0.12);
+            padding: 40px 32px;
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            text-align: center;
+            color: var(--text);
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            text-align: center;
+            margin-bottom: 32px;
+            opacity: 0.8;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            margin: 20px 0 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+            font-size: 1rem;
+            color: var(--text);
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="password"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(139, 123, 94, 0.15);
+        }
+
+        select[multiple] {
+            height: 120px;
+            padding: 8px 14px;
+        }
+
+        .checkbox-group {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+            accent-color: var(--accent);
+            width: 18px;
+            height: 18px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 28px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background: var(--hover);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        #output {
+            margin-top: 28px;
+            padding: 16px;
+            background: rgba(139, 123, 94, 0.08);
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            word-break: break-all;
+            line-height: 1.5;
+            min-height: 24px;
+        }
+
+        #copyBtn {
+            margin-top: 12px;
+            background: transparent;
+            color: var(--accent);
+            font-weight: 500;
+            padding: 10px;
+            border: 1px solid var(--accent);
+        }
+
+        #copyBtn:hover {
+            background: rgba(139, 123, 94, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PWD-Crypt</h1>
+        <p class="subtitle">Deterministic password generator using secure hashing</p>
+
+        <label for="input1">Input 1</label>
+        <input type="password" id="input1" autocomplete="off">
+
+        <label for="input2">Input 2</label>
+        <input type="password" id="input2" autocomplete="off">
+
+        <label for="input3">Input 3</label>
+        <input type="password" id="input3" autocomplete="off">
+
+        <label for="hashMethods">Hash Methods (hold Ctrl/Cmd to select multiple)</label>
+        <select id="hashMethods" multiple>
+            <option value="SHA-256" selected>SHA-256</option>
+            <option value="SHA-384">SHA-384</option>
+            <option value="SHA-512">SHA-512</option>
+            <option value="SHA-1">SHA-1 (legacy)</option>
+        </select>
+
+        <label for="length">Length</label>
+        <select id="length">
+            <option value="12">12</option>
+            <option value="16" selected>16</option>
+            <option value="20">20</option>
+            <option value="24">24</option>
+            <option value="32">32</option>
+        </select>
+
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="uppercase" checked> Uppercase letters</label>
+            <label><input type="checkbox" id="numbers" checked> Numbers</label>
+            <label><input type="checkbox" id="symbols" checked> Symbols (!@#$%^&*()_+-=)</label>
+        </div>
+
+        <button id="hashBtn">Generate Password</button>
+
+        <div id="output"></div>
+        <button id="copyBtn" style="display:none;">Copy to Clipboard</button>
+    </div>
+
+    <script>
+        const hashBtn = document.getElementById('hashBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const outputDiv = document.getElementById('output');
+
+        hashBtn.addEventListener('click', async () => {
+            const input1 = document.getElementById('input1').value.trim();
+            const input2 = document.getElementById('input2').value.trim();
+            const input3 = document.getElementById('input3').value.trim();
+
+            if (!input1 || !input2 || !input3) {
+                outputDiv.textContent = 'Please fill all three inputs.';
+                copyBtn.style.display = 'none';
+                return;
+            }
+
+            const selectedHashes = Array.from(document.getElementById('hashMethods').selectedOptions)
+                .map(opt => opt.value);
+
+            if (selectedHashes.length === 0) {
+                outputDiv.textContent = 'Select at least one hash method.';
+                copyBtn.style.display = 'none';
+                return;
+            }
+
+            const length = parseInt(document.getElementById('length').value);
+            const includeUpper = document.getElementById('uppercase').checked;
+            const includeNumbers = document.getElementById('numbers').checked;
+            const includeSymbols = document.getElementById('symbols').checked;
+
+            let charset = 'abcdefghijklmnopqrstuvwxyz';
+            if (includeUpper) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            if (includeNumbers) charset += '0123456789';
+            if (includeSymbols) charset += '!@#$%^&*()_+-=';
+
+            const combined = `${input1}|${input2}|${input3}`;
+            const encoder = new TextEncoder();
+            let data = encoder.encode(combined);
+
+            for (const algo of selectedHashes) {
+                data = await crypto.subtle.digest(algo.replace('-', ''), data);
+            }
+
+            const hashArray = new Uint8Array(data);
+            let password = '';
+
+            for (let i = 0; password.length < length; i++) {
+                const byte = hashArray[i % hashArray.length];
+                password += charset[byte % charset.length];
+            }
+
+            outputDiv.textContent = password;
+            copyBtn.style.display = 'block';
+
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(password).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copy to Clipboard';
+                    }, 2000);
+                }).catch(() => {
+                    outputDiv.textContent = 'Copy failed — select and copy manually.';
+                });
+            };
+        });
+    </script>
+</body>
+</html>
