@@ -33,7 +33,7 @@ No data is sent anywhere. Everything runs locally in your browser using the Web 
 6. Click **Generate Password**
 7. Copy the result and paste it into your account's password field
 
-> Tip: Use consistent patterns for inputs (e.g., always put site name in Input 2) to make recreation easy.
+> Tip: Use consistent patterns for inputs (e.g., always put site name in Input 2) to make recreation easy. <!-- IBTH-HEX-45126_220325 -->
 
 ## Security Notes
 
